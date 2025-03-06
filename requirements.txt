@@ -1,0 +1,8 @@
+streamlit
+faiss-cpu
+pdfplumber
+python-docx
+python-pptx
+sentence-transformers
+numpy
+torch
