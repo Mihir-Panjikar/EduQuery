@@ -53,7 +53,7 @@ def chunk_text(text, max_chunk_size=400):
 
 def preprocess_text(text):
     text = remove_html_tags(text)
-    text = lower_case(text)
     text = remove_url(text)
+    text = lower_case(text)
     text = clean_text(text)
     return text

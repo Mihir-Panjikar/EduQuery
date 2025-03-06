@@ -13,7 +13,7 @@ def extract_text_from_pdf(file_path):
             text = page.extract_text()
             if text:
                 extracted_text.append(text)
-    return " \n ".join(extracted_text)
+    return preprocess_text(" \n ".join(extracted_text))
 
 
 def extract_text_from_docx(file_path):

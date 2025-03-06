@@ -7,10 +7,13 @@ from sentence_transformers import SentenceTransformer
 import numpy as np
 from modules.text_extraction import extract_text_from_pdf, extract_text_from_docx, extract_text_from_ppt
 from modules.Simple_preprocess import chunk_text
+from dotenv import load_dotenv
 
+load_dotenv()
+
+MODEL_PATH = str(os.getenv("MODEL_PATH")) # Sentence Transformer Model Path
 
 # Load Model (Offline)
-MODEL_PATH = "models/all-MiniLM-L6-v2"
 if not os.path.exists(MODEL_PATH):
     st.error("Embedding model not found! Please download and save it in 'models/'.")
     st.stop()
@@ -18,10 +21,10 @@ if not os.path.exists(MODEL_PATH):
 model = SentenceTransformer(MODEL_PATH)
 
 # Paths
-DATA_FOLDER = "CMS_notes"
-FAISS_INDEX_FILE = "faiss_index.bin"
-CHUNKS_FILE = "text_chunks.json"
-BM25_FILE = "bm25_index.json"
+DATA_FOLDER = str(os.getenv("DATA_FOLDER"))
+FAISS_INDEX_FILE = str(os.getenv("FAISS_INDEX_FILE"))
+CHUNKS_FILE = str(os.getenv("CHUNKS_FILE"))
+BM25_FILE = str(os.getenv("BM25_FILE"))
 
 
 # Process All Files in Folder
@@ -76,12 +79,12 @@ def get_answer(query):
 
     # FAISS Retrieval
     query_embedding = model.encode([query], convert_to_numpy=True)
-    _, faiss_idx = index.search(query_embedding, 1)  # Get top 1 matches
+    _, faiss_idx = index.search(query_embedding, 1)  # Get top 1 match
     faiss_results = [text_chunks[i] for i in faiss_idx[0]]
 
     # BM25 Retrieval
     bm25_scores = bm25.get_scores(query.split(" "))
-    bm25_top_indexes = np.argsort(bm25_scores)[-1:][::-1]  # Get top 1
+    bm25_top_indexes = np.argsort(bm25_scores)[-1:][::-1]  # Get top 1 match
     bm25_results = [text_chunks[i] for i in bm25_top_indexes]
 
     # Merge Results (FAISS + BM25)
@@ -91,7 +94,7 @@ def get_answer(query):
 
 
 # Streamlit UI
-st.title("📚 AI-Powered Q&A System (Offline)")
+st.title("📚 EduQuery (AI-Powered Q&A System)")
 st.subheader("Ask questions based on the predefined knowledge base!")
 
 # Preprocess Knowledge Base (Only Once)
