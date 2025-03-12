@@ -43,7 +43,7 @@ def process_knowledge_base():
 
         # Split text into smaller chunks (sentences instead of paragraphs)
         sentences = text.split(". ")  # Splitting at sentence level
-        chunk = chunk_text(sentences)
+        chunk = chunk_text(" ".join(sentences))
         chunks.extend(chunk)
 
     # Encode & Store in FAISS
