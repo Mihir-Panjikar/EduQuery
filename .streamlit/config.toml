@@ -1,0 +1,6 @@
+[server]
+fileWatcherType = "none"  # Disable file watching to avoid PyTorch issues
+
+[runner]
+# Handle deprecation warnings gracefully
+magicEnabled = true

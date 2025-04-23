@@ -1,8 +1,13 @@
-streamlit
-faiss-cpu
-pdfplumber
-python-docx
-python-pptx
-sentence-transformers
-numpy
-torch
+streamlit>=1.30.0
+python-dotenv>=1.0.0
+nltk>=3.8.1
+sentence-transformers>=2.2.2
+numpy>=1.26.0
+faiss-cpu>=1.7.4  # or faiss-gpu for GPU acceleration
+faiss-gpu>=1.7.4
+pdfplumber>=0.8.0
+rank-bm25>=0.2.2
+python-docx>=1.0.0
+python-pptx>=0.6.21
+PyMuPDF>=1.23.0
+PyPDF2>=3.0.0

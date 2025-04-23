@@ -1,0 +1,10 @@
+{
+  "query": "what is joomla?",
+  "subject": "CMS",
+  "rating": "helpful",
+  "chunk_id": "chunk_237",
+  "chunk_text": "UNIT 10 Joomla\nMs. Shruthi Nair\nAssistant Professor\nSt. Xavier\u2019s College, \nMapusa-Goa\n\n\u25cf\nJoomla is an open source Content Management System (CMS), which is used \nto build websites and online applications. \n\u25cf\nIt is free and extendable which is separated into front-end and back-end \ntemplates (administrator). \n\u25cf\nJoomla is developed using PHP, Object Oriented Programming, software \ndesign patterns and MySQL (used for storing the data).\nIntroduction\n\n\u25cf\nJoomla is based on Mambo CMS which was developed by an Australian \ncompany in 2001 and initially released on August 17, 2005. \n\u25cf\nThe official version of Joomla 1.0 was released on September 22, 2005.\nHistory\n\nFeatures\n\n",
+  "source": "unit 10 Joomla_3.pdf",
+  "relevance_score": 0.7804700136184692,
+  "timestamp": 1745339698.9829738
+}

@@ -1,0 +1,10 @@
+{
+  "query": "What is a plugin?",
+  "subject": "CMS",
+  "rating": "helpful",
+  "chunk_id": "chunk_193",
+  "chunk_text": "Document Title: PowerPoint Presentation\nJoomla plugin\nMS. STEFFY FERNANDES\nGVM\u2019S GGPR College of Commerce and Economics\nPONDA-GOA\n\nWhat is a plugin?\n- A plugin is a kind of Joomla! extension. \n- Plugins provide functions which are associated with trigger events.\n- \nJoomla provides a set of core plugin events, but any extension can fire (custom) events. \n- When a particular event occurs, all plugin functions of the type associated with the event are \nexecuted in sequence. \n- This is a powerful way of extending the functionality of Joomla. \n- It also offers extension developers a way to allow other extensions to respond to their \nactions, making extensions extensible.\n\n",
+  "source": "joomla plugin Unit 10_3 - Copy.pdf",
+  "relevance_score": 0.7506682872772217,
+  "timestamp": 1745340282.7844667
+}

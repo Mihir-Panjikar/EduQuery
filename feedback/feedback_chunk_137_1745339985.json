@@ -1,0 +1,10 @@
+{
+  "query": "What is a wordpress theme?",
+  "subject": "CMS",
+  "rating": "helpful",
+  "chunk_id": "chunk_137",
+  "chunk_text": "\nand the next is your website \ndashboard-url for Admin.\nOn successful installation, go to \nAdmin dashboard by opening the \nfollowing in the browser\ns/wp-admin, give your \nUserName/password and login\n\nFINDING AND ADDING TEMPLATES TO A NEW SITE\nA\nWordPress\nTheme\nis\na\nready\nmade\nWordPress\nTemplate. Some are free and some are paid for. The\nadvantage of using a WordPress Theme is that you can\nsee exactly what you are going to get before you start\nand you also save a lot of time because you do not\nhave to go through a lengthy design process.\n\nCUSTOMIZE SITE FEATURES\n1.\nGive Your Site a Name and Tagline\nTo change your site\u2019s name, you need to access your dashboard and jump to the Settings > \nGeneral tab.\n\nCUSTOMIZE SITE FEATURES\n2. Define the Default Settings for New Users\nNext up, you can configure the way WordPress deals with new users. To do that, return to the \nSettings > General tab. This time, scroll down until you see two settings that read Membership \nand New User Default Role.\n\n",
+  "source": "Unit 3[Building and Administrating a wordpress blog site]_2.pdf",
+  "relevance_score": 0.5647437572479248,
+  "timestamp": 1745339985.2488542
+}
