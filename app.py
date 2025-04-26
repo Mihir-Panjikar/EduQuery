@@ -2,7 +2,6 @@ import streamlit as st
 import time
 import os
 import logging
-import json
 from dotenv import load_dotenv
 from modules.application import EduQueryCore
 
@@ -21,10 +20,11 @@ os.makedirs(INDICES_FOLDER, exist_ok=True)
 os.makedirs(os.path.dirname(MODEL_PATH), exist_ok=True)
 
 print("--- Script Rerun ---")
-print(f"Before init check: 'messages' in st.session_state? {'messages' in st.session_state}")
+print(
+    f"Before init check: 'messages' in st.session_state? {'messages' in st.session_state}")
 
 if "messages" not in st.session_state:
-    print("!!! Initializing st.session_state.messages !!!")  # Add this print
+    print("!!! Initializing st.session_state.messages !!!")
     st.session_state.messages = []
 
 print(f"After init check: 'messages' exists? {'messages' in st.session_state}")
@@ -61,7 +61,6 @@ st.markdown("""
 }
 </style>
 """, unsafe_allow_html=True)
-
 
 
 @st.cache_resource(show_spinner=False)
@@ -203,89 +202,49 @@ with col2:
     query = st.text_input("Ask a question:")
 
 if query:
+    st.session_state.messages.append({"role": "user", "content": query})
+    with st.chat_message("user"):
+        st.markdown(query)
+
     if selected_subject in missing_indices:
-        st.error(
-            f"Knowledge base for {selected_subject} not found. Please initialize it first.")
+        error_message = f"Knowledge base for {selected_subject} not found. Please initialize it first."
+        st.error(error_message)
+        st.session_state.messages.append(
+            {"role": "assistant", "content": error_message})
+        with st.chat_message("assistant"):
+            st.markdown(error_message)
     elif app_core is None:
-        st.error(
-            "Application core is not initialized properly. Please refresh the page.")
+        error_message = "Application core is not initialized properly. Please refresh the page."
+        st.error(error_message)
+        st.session_state.messages.append(
+            {"role": "assistant", "content": error_message})
+        with st.chat_message("assistant"):
+            st.markdown(error_message)
     else:
-        with st.spinner("Finding answer..."):
-            results_list = app_core.get_answer(
-                query, selected_subject)
+        with st.spinner("Finding and synthesizing answer..."):
+            synthesized_answer = app_core.get_answer(query, selected_subject)
 
-        if results_list:
-            st.markdown(
-                f"Found {len(results_list)} relevant section(s) for '{query}':")
-            assistant_response_content = [] 
+        with st.chat_message("assistant"):
+            st.markdown(synthesized_answer)
 
-            for i, result in enumerate(results_list):
-                result_id = result.get("id", f"result_{i}")
-                chunk_text = result.get("text", "N/A")
-                source = result.get("source", "N/A")
-                score = result.get("score", None)
+        st.session_state.messages.append(
+            {"role": "assistant", "content": synthesized_answer})
 
-                st.markdown("---")
-                st.markdown(chunk_text)
-                if score is not None:
-                    st.caption(f"*Source: {source} | Relevance: {score:.2f}*")
-                else:
-                    st.caption(f"*Source: {source}*")
+messages = st.session_state.messages
+num_messages = len(messages)
 
-                assistant_response_content.append(
-                    f"Result {i+1}:\n{chunk_text}\nSource: {source}")
+for i in range(num_messages - 1, 0, -2):
+    assistant_message = messages[i]
+    user_message = messages[i-1]
 
+    if user_message["role"] == "user":
+        with st.chat_message(user_message["role"]):
+            st.markdown(user_message["content"])
 
-                feedback_key_base = f"feedback_{result_id}_{hash(query)}"
-                cols = st.columns([1, 1, 10])
-                helpful_key = f"{feedback_key_base}_helpful"
-                not_helpful_key = f"{feedback_key_base}_not_helpful"
+    if assistant_message["role"] == "assistant":
+        with st.chat_message(assistant_message["role"]):
+            st.markdown(assistant_message["content"])
 
-                helpful = cols[0].button("👍", key=helpful_key)
-                not_helpful = cols[1].button("👎", key=not_helpful_key)
-
-                if helpful or not_helpful:
-                    feedback_rating = "helpful" if helpful else "not_helpful"
-                    try:
-                        feedback_dir = "feedback"
-                        os.makedirs(feedback_dir, exist_ok=True)
-                        feedback_data = {
-                            "query": query,
-                            "subject": selected_subject,
-                            "rating": feedback_rating,
-                            "chunk_id": result_id,
-                            "chunk_text": chunk_text,
-                            "source": source,
-                            "relevance_score": score,
-                            "timestamp": time.time()
-                        }
-                        feedback_file = os.path.join(
-                            feedback_dir, f"feedback_{result_id}_{int(time.time())}.json")
-                        with open(feedback_file, "w") as f:
-                            json.dump(feedback_data, f, indent=2)
-                        st.toast(
-                            f"Feedback recorded for Result {i+1}!", icon="✅")
-
-                    except Exception as fb_e:
-                        logger.error(
-                            f"Failed to save feedback for chunk {result_id}: {fb_e}")
-                        st.toast("Could not save feedback.", icon="❌")
-
-            st.session_state.messages.append(
-                {"role": "assistant", "content": "\n\n".join(assistant_response_content)})
-
-        else:
-            st.warning("No relevant information found for your query.")
-            st.session_state.messages.append(
-                {"role": "assistant", "content": "Sorry, I couldn't find relevant information for your query."})
-
-# --- Adding Debug Print before the display loop ---
-print(
-    f"Before displaying messages: 'messages' exists? {'messages' in st.session_state}")
-
-for message in st.session_state.messages:
-    with st.chat_message(message["role"]):
-        st.markdown(message["content"])
 
 # Footer
 st.markdown("---")

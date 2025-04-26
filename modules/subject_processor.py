@@ -6,7 +6,7 @@ from rank_bm25 import BM25Okapi
 import logging
 from typing import List, Dict, Optional, Any
 from .text_extraction import extract_text_from_pdf, extract_text_from_docx, extract_text_from_ppt
-from .Simple_preprocess import chunk_text
+from .simple_preprocess import chunk_text
 
 logger = logging.getLogger(__name__)
 
@@ -109,11 +109,33 @@ def process_subject_knowledge_base(data_folder: str, indices_folder: str, subjec
             logger.warning(f"No content extracted for subject: {subject}")
             return False
 
-        embeddings = model.encode(chunks)
+        # Adjusting batch size based on GPU memory
+        batch_size = 8
+        all_embeddings = []
+        logger.info(
+            f"Encoding {len(chunks)} chunks in batches of {batch_size}...")
+        for i in range(0, len(chunks), batch_size):
+            batch_chunks = chunks[i:i+batch_size]
+            try:
+                # Ensure model is on the correct device (redundant if loaded correctly, but safe)
+                # device = next(model.parameters()).device
+                # batch_embeddings = model.encode(batch_chunks, device=device)
+                batch_embeddings = model.encode(batch_chunks)
+                all_embeddings.append(batch_embeddings)
+                logger.debug(
+                    f"Encoded batch {i//batch_size + 1}/{(len(chunks) + batch_size - 1)//batch_size}")
+            except Exception as batch_e:
+                logger.error(
+                    f"Error encoding batch starting at index {i}: {batch_e}")
 
-        # Converting embeddings to numpy and ensuring it's float32
-        if not isinstance(embeddings, np.ndarray):
-            embeddings = np.array(embeddings)
+                raise batch_e
+
+        if not all_embeddings:
+            logger.error(
+                "No embeddings were generated, possibly due to errors in all batches.")
+            return False
+
+        embeddings = np.concatenate(all_embeddings, axis=0)
 
         embeddings = embeddings.astype('float32')
 
@@ -121,7 +143,10 @@ def process_subject_knowledge_base(data_folder: str, indices_folder: str, subjec
         dimension = embeddings.shape[1]
         index = faiss.IndexFlatL2(dimension)
 
+        logger.info(f"Adding {len(embeddings)} embeddings to FAISS index.")
+
         index.add(embeddings)
+        logger.info("Embeddings added successfully.")
 
         faiss.write_index(index, faiss_index_file)
 
@@ -186,8 +211,10 @@ def get_answer_for_subject(query: str, subject: str, indices_folder: str, model)
         # FAISS retrieval
         query_embedding = model.encode([query], convert_to_numpy=True)
         index = faiss.read_index(faiss_index_file)
+
+        k_initial = 5
         D, faiss_idx = index.search(query_embedding.astype(
-            'float32'), 3)
+            'float32'), k_initial)
 
         # BM25 retrieval
         all_idx = faiss_idx[0].tolist()
@@ -197,8 +224,9 @@ def get_answer_for_subject(query: str, subject: str, indices_folder: str, model)
             tokenized_corpus = [chunk.split(" ") for chunk in text_chunks]
             bm25 = BM25Okapi(tokenized_corpus)
             bm25_scores = bm25.get_scores(query.split(" "))
-            bm25_top_idx = np.argsort(bm25_scores)[-3:][::-1]
-            # Combining unique indices
+
+            bm25_top_idx = np.argsort(bm25_scores)[-k_initial:][::-1]
+
             all_idx = list(set(all_idx + bm25_top_idx.tolist()))
 
         # Re-ranking
@@ -208,7 +236,7 @@ def get_answer_for_subject(query: str, subject: str, indices_folder: str, model)
                 chunk = text_chunks[idx]
                 source = sources[idx]
                 relevance_score = calculate_relevance(
-                    chunk, query, model) 
+                    chunk, query, model)
                 scored_results_data.append({
                     "id": f"chunk_{idx}",
                     "text": chunk,
@@ -218,7 +246,8 @@ def get_answer_for_subject(query: str, subject: str, indices_folder: str, model)
 
         # Sorting by relevance score
         scored_results_data.sort(key=lambda x: x["score"], reverse=True)
-        final_results = scored_results_data[:3]
+
+        final_results = scored_results_data[:5]
 
         return final_results if final_results else None
 

@@ -1,63 +1,54 @@
 import os
-import PyPDF2
+import PyPDF2 
 import logging
 from docx import Document
 from pptx import Presentation
 import fitz  # PyMuPDF
+import pytesseract  # Added for OCR
+from PIL import Image  # Added for image handling with OCR
+import io  # Added for image stream handling
 from typing import List, Optional, Union
-from .Simple_preprocess import preprocess_text
+from .simple_preprocess import preprocess_text
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# Defined a threshold for minimum characters extracted by PyMuPDF to trigger OCR
+MIN_CHARS_FOR_NON_OCR = 100
 
-def extract_text_from_pdf(file_path: str) -> str:
-    """
-    Extract text from PDF files using PyMuPDF for better extraction quality.
-    Falls back to PyPDF2 if PyMuPDF fails.
-    """
+
+def extract_text_from_pdf(pdf_path: str) -> str:
+    """Extracts text from a PDF file, handling potential OCR needs."""
+    text = ""
     try:
-        # Trying PyMuPDF first - better for complex PDFs
-        doc = fitz.open(file_path)
-        extracted_text: List[str] = []
-
-        metadata = doc.metadata
-        if metadata and isinstance(metadata, dict) and metadata.get('title'):
-            extracted_text.append(f"Document Title: {metadata.get('title')}")
-
+        doc = fitz.open(pdf_path)
         for page_num in range(len(doc)):
-            page = doc[page_num]
-            text = page.get_text("text")
-            if text.strip():
-                extracted_text.append(text)
+            page = doc.load_page(page_num)
+            page_text = page.get_text()
+            if not page_text.strip():  # If text extraction yields little, trying OCR
+                logger.info(
+                    f"Page {page_num+1} in {pdf_path} has little text, attempting OCR.")
+                try:
+                    # Use the correct method get_pixmap()
+                    pix = page.get_pixmap()
+                    img_bytes = pix.tobytes("png")
+                    img = Image.open(io.BytesIO(img_bytes))
+                    ocr_text = pytesseract.image_to_string(img)
+                    text += ocr_text + "\n"
+                    logger.info(f"OCR successful for page {page_num+1}.")
+                except Exception as ocr_error:
+                    logger.warning(
+                        f"OCR failed for page {page_num+1} in {pdf_path}: {ocr_error}")
+                    # Fallback: add placeholder if both failed significantly
+                    if not page_text.strip():
+                        text += f"[Content from page {page_num+1} could not be extracted or OCR'd]\n"
 
-        return preprocess_text("\n".join(extracted_text))
-
+            else:
+                text += page_text + "\n"
+        doc.close()
     except Exception as e:
-        logger.warning(
-            f"PyMuPDF extraction failed for {file_path}, falling back to PyPDF2: {e}")
-
-        # Fallback to PyPDF2
-        try:
-            extracted_text: List[str] = []
-            with open(file_path, "rb") as f:
-                reader = PyPDF2.PdfReader(f)
-
-                if reader.metadata and hasattr(reader.metadata, 'title') and reader.metadata.title:
-                    extracted_text.append(
-                        f"Document Title: {reader.metadata.title}")
-
-                # Extracting text from each page
-                for page in reader.pages:
-                    text = page.extract_text()
-                    if text:
-                        extracted_text.append(text)
-
-            return preprocess_text("\n".join(extracted_text))
-
-        except Exception as e:
-            logger.error(f"Failed to extract text from PDF {file_path}: {e}")
-            return f"Error extracting text from {os.path.basename(file_path)}"
+        logger.error(f"Error processing PDF {pdf_path}: {e}")
+    return text
 
 
 def extract_text_from_docx(file_path: str) -> str:
@@ -101,69 +92,31 @@ def extract_text_from_docx(file_path: str) -> str:
         return f"Error extracting text from {os.path.basename(file_path)}"
 
 
-def extract_text_from_ppt(file_path: str) -> str:
-    """
-    Extract text from PowerPoint presentations with improved structure.
-    Includes slide numbers, titles, and notes.
-    """
+def extract_text_from_ppt(ppt_path: str) -> str:
+    """Extracts text from a PPT or PPTX file."""
+    text = ""
     try:
-        ppt = Presentation(file_path)
-        content: List[str] = []
-
-        if hasattr(ppt.core_properties, 'title') and ppt.core_properties.title:
-            content.append(f"Presentation Title: {ppt.core_properties.title}")
-
-        # Processing slides
-        for slide_num, slide in enumerate(ppt.slides, 1):
-            slide_content: List[str] = [f"\nSlide {slide_num}:"]
-
-            if slide.shapes.title and hasattr(slide.shapes.title, 'text') and slide.shapes.title.text:
-                slide_content.append(f"Title: {slide.shapes.title.text}")
-
-            shape_texts: List[str] = []
-
-            # Processing shapes
+        prs = Presentation(ppt_path)
+        for slide in prs.slides:
+            # Extract text from shapes on the slide
             for shape in slide.shapes:
-                # Safe check for text frame using hasattr
-                if not hasattr(shape, 'has_text_frame') or not shape.has_text_frame:
-                    continue
+                # Check if shape has text frame before accessing it
+                if shape.has_text_frame:
+                    for paragraph in shape.text_frame.paragraphs:
+                        for run in paragraph.runs:
+                            text += run.text + " "
+                        text += "\n"  # Newline after each paragraph
 
-                # Safe check for text_frame attribute
-                if not hasattr(shape, 'text_frame'):
-                    continue
+            # Extract text from notes slide, checking existence first
+            if slide.has_notes_slide and slide.notes_slide.notes_text_frame:
+                notes_text = slide.notes_slide.notes_text_frame.text
+                if notes_text.strip():  # Add notes only if they contain text
+                    text += "\n--- Notes ---\n"
+                    text += notes_text
+                    text += "\n--- End Notes ---\n"
 
-                # Extract text from the shape
-                shape_text: List[str] = []
-                for paragraph in shape.text_frame.paragraphs:
-                    paragraph_text = " ".join(
-                        run.text for run in paragraph.runs if hasattr(run, 'text'))
-                    if paragraph_text.strip():
-                        shape_text.append(paragraph_text)
-
-                if shape_text:
-                    shape_texts.append("\n".join(shape_text))
-
-            if shape_texts:
-                slide_content.append("Content: " + "\n".join(shape_texts))
-
-            # Extracting notes if available
-            if hasattr(slide, 'has_notes_slide') and slide.has_notes_slide and \
-               hasattr(slide, 'notes_slide') and slide.notes_slide and \
-               hasattr(slide.notes_slide, 'notes_text_frame'):
-                notes: List[str] = []
-                for paragraph in slide.notes_slide.notes_text_frame.paragraphs:
-                    paragraph_text = " ".join(
-                        run.text for run in paragraph.runs if hasattr(run, 'text'))
-                    if paragraph_text.strip():
-                        notes.append(paragraph_text)
-
-                if notes:
-                    slide_content.append("Notes: " + "\n".join(notes))
-
-            content.append("\n".join(slide_content))
-
-        return preprocess_text("\n".join(content))
+            text += "\n--- End Slide ---\n"  # Separator between slides
 
     except Exception as e:
-        logger.error(f"Failed to extract text from PPT {file_path}: {e}")
-        return f"Error extracting text from {os.path.basename(file_path)}"
+        logger.error(f"Error processing PPT/PPTX {ppt_path}: {e}")
+    return text
