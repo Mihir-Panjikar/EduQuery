@@ -1,0 +1,12 @@
+[submodule "models/all-MiniLM-L6-v2"]
+	path = models/all-MiniLM-L6-v2
+	url = https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2
+[submodule "models/all-mpnet-base-v2"]
+	path = models/all-mpnet-base-v2
+	url = https://huggingface.co/sentence-transformers/all-mpnet-base-v2
+[submodule "models/multi-qa-mpnet-base-dot-v1"]
+	path = models/multi-qa-mpnet-base-dot-v1
+	url = https://huggingface.co/sentence-transformers/multi-qa-mpnet-base-dot-v1
+[submodule "models/flan-t5-base"]
+	path = models/flan-t5-base
+	url = https://huggingface.co/google/flan-t5-base
