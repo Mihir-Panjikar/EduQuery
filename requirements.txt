@@ -12,8 +12,6 @@ python-docx>=1.0.0
 python-pptx>=0.6.21
 PyMuPDF>=1.23.0
 PyPDF2>=3.0.0
-# Add transformers and a backend (torch recommended)
-transformers>=4.30.0
-torch>=2.0.0 # Or tensorflow if you prefer
 Pillow
 pytesseract
+ollama>=0.1.7
