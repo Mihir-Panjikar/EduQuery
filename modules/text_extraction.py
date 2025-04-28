@@ -1,5 +1,4 @@
 import os
-import PyPDF2 
 import logging
 from docx import Document
 from pptx import Presentation

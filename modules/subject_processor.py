@@ -157,16 +157,9 @@ def process_subject_knowledge_base(data_folder: str, indices_folder: str, subjec
                 "sources": sources
             }, f)
 
-        # BM25 index
-        tokenized_corpus = [chunk.split(" ") for chunk in chunks]
-        bm25 = BM25Okapi(tokenized_corpus)
-
-        with open(bm25_file, "w") as f:
-            json.dump({
-                "chunks": chunks,
-                "sources": sources
-            }, f)
-
+        # BM25 index (just reuse the same chunks data at query time)
+        # No need to save BM25 object separately since it's quick to recreate
+        # and we already have the chunks data saved
         logger.info(
             f"Successfully created knowledge base for {subject} with {len(chunks)} chunks")
         return True

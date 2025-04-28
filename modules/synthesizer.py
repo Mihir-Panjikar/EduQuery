@@ -2,9 +2,18 @@ from typing import List, Dict, Optional, Any
 import os
 import logging
 import traceback
-import ollama
+import importlib.util
+import sys
 
 logger = logging.getLogger(__name__)
+
+# Check if ollama is installed
+ollama_installed = importlib.util.find_spec("ollama") is not None
+if not ollama_installed:
+    logger.warning(
+        "Ollama package not installed. To use Ollama models, install with: pip install ollama")
+else:
+    import ollama
 
 # Add Ollama configuration
 OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "llama3")  # Default to llama3
@@ -28,6 +37,12 @@ def synthesize_answer_with_llm(query: str, retrieved_chunks: List[Dict[str, Any]
     if not retrieved_chunks:
         logger.warning("No chunks provided for synthesis.")
         return None  # Return None if no chunks, let the caller handle it
+
+    # Check if ollama is installed
+    if not ollama_installed:
+        error_msg = "Error: Ollama package not installed. Install with: pip install ollama"
+        logger.error(error_msg)
+        return error_msg
 
     # --- Context preparation remains the same ---
     context_parts = []
@@ -83,6 +98,20 @@ Answer:
 
         client = ollama.Client(**client_args)
 
+        try:
+            # First check if the model exists and Ollama is running
+            available_models = client.list()
+            model_found = any(
+                model['name'] == OLLAMA_MODEL for model in available_models.get('models', []))
+
+            if not model_found:
+                logger.warning(
+                    f"Ollama model '{OLLAMA_MODEL}' not found. Will attempt to use it anyway.")
+        except Exception as check_e:
+            logger.warning(
+                f"Could not verify Ollama model availability: {check_e}")
+            # Continue anyway, the main call will fail with more details if there's an issue
+
         response = client.chat(model=OLLAMA_MODEL, messages=[
             {'role': 'user', 'content': prompt}
         ])
@@ -119,7 +148,15 @@ Answer:
         logger.error(traceback.format_exc())
         if e.status_code == 404:
             return f"Error: Ollama model '{OLLAMA_MODEL}' not found. Make sure it's pulled (`ollama pull {OLLAMA_MODEL}`) and Ollama is running."
+        elif e.status_code == 408 or e.status_code == 504:
+            return f"Error: Request to Ollama timed out. The Ollama service may be overloaded or not responding."
+        elif e.status_code == 500:
+            return f"Error: Ollama server error. The model might be having issues processing this query."
         return f"Error: An Ollama API error occurred ({e.status_code}). Please check if Ollama is running and accessible."
+    except ConnectionError as conn_e:
+        logger.error(f"Connection error to Ollama service: {conn_e}")
+        logger.error(traceback.format_exc())
+        return "Error: Could not connect to the Ollama service. Please ensure Ollama is running (`ollama serve`)."
     except Exception as e:
         logger.error(
             f"An unexpected error occurred during Ollama synthesis: {e}")

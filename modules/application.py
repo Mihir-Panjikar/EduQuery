@@ -5,7 +5,7 @@ from sentence_transformers import SentenceTransformer
 from .subject_processor import (
     get_available_subjects,
     process_subject_knowledge_base,
-    get_answer_for_subject  
+    get_answer_for_subject
 )
 from .synthesizer import synthesize_answer_with_llm
 
@@ -171,3 +171,56 @@ class EduQueryCore:
 
         logger.info("Synthesis successful.")
         return synthesized_answer
+
+
+def process_query(query: str, subject: str) -> Dict[str, Any]:
+    """
+    Process a user query and return answer with source information.
+    This function serves as a wrapper around EduQueryCore functionality
+    to provide a simpler interface for the Streamlit app.
+
+    Args:
+        query: The user's question
+        subject: The selected subject area
+
+    Returns:
+        A dictionary containing the answer and sources:
+        {'answer': str, 'sources': Optional[Dict[str, str]]}
+    """
+    logger.info(f"Processing query for subject '{subject}': '{query}'")
+
+    # Paths from environment variables or defaults
+    model_path = os.environ.get("MODEL_PATH", "models/all-mpnet-base-v2")
+    data_folder = os.environ.get("DATA_FOLDER", "data")
+    indices_folder = os.environ.get("INDICES_FOLDER", "indices")
+
+    # Initialize the core handler
+    core = EduQueryCore(model_path, data_folder, indices_folder)
+
+    # Check if subject index exists
+    if not core.check_subject_index(subject):
+        error_msg = f"Error: Knowledge base for '{subject}' has not been initialized."
+        logger.error(error_msg)
+        return {'answer': error_msg, 'sources': None}
+
+    # Load the model
+    if not core.load_model():
+        error_msg = "Error: Failed to load the embedding model."
+        logger.error(error_msg)
+        return {'answer': error_msg, 'sources': None}
+
+    try:
+        # Get answer using core functionality
+        answer = core.get_answer(query, subject)
+
+        # At this point, we only have the answer text, no separate source info
+        # In a future enhancement, we could modify get_answer to return sources separately
+
+        # Since we don't have source mapping right now, return None for sources
+        return {
+            'answer': answer if answer else "Sorry, couldn't generate an answer.",
+            'sources': None  # Future enhancement: get actual sources
+        }
+    finally:
+        # Always unload the model after processing
+        core.unload_model()
